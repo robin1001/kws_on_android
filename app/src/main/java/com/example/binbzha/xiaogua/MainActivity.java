@@ -1,0 +1,432 @@
+package com.example.binbzha.xiaogua;
+
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
+import android.os.Environment;
+import android.os.Process;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.RandomAccessFile;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.Timer;
+import java.util.TimerTask;
+
+public class MainActivity extends AppCompatActivity {
+    final String LOG_TAG = "Xiaogua";
+    final int SAMPLE_RATE = 16000; // The sampling rate
+    int miniBufferSize = 0; // 1280 bytes 648 byte 0.04ms
+    final int MAX_QUEUE_SIZE = 250; // 100 seconds audio, 1 / 0.04 * 100
+    final int MIN_TEMPLATE_SIZE = (int)(SAMPLE_RATE * 0.6);
+    final int MAX_TEMPLATE_SIZE = (int)(SAMPLE_RATE * 3.0);
+    Queue<short[]> bufferQueue = new LinkedList<short[]>();
+
+    AudioRecord record = null;
+    Button button = null;
+    Button buttonRegister = null;
+    TextView textView = null;
+    TextView statusTextView = null;
+    VoiceRectView voiceView = null;
+    static Object lockRecord = new Object();
+    static Object queueLock = new Object();
+
+    boolean shouldRecord = false; // Indicates if recording / playback should stop
+    // for register
+    boolean registered = false;
+    boolean registering = false;
+    int register_progress = 0;
+    Kws kws = new Kws();
+
+    private final String wavFile =  Environment.getExternalStorageDirectory() + "/register.wav";
+    private String netFile = "data/data/com.example.binbzha.xiaogua/kws.net";
+    private String cmvnFile = "data/data/com.example.binbzha.xiaogua/kws.cmvn";
+    private String vadNetFile = "data/data/com.example.binbzha.xiaogua/kws.net";
+    private String vadCmvnFile = "data/data/com.example.binbzha.xiaogua/kws.cmvn";
+
+    // keep same with endpoint_thresh in xiaogua.cc
+    private int endpointLength = 6400; // 0.5 * 16000
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        textView = ((TextView)findViewById(R.id.text_view));
+        statusTextView = ((TextView)findViewById(R.id.status_text_view));
+        voiceView = (VoiceRectView)(findViewById(R.id.voice_rect_view));
+        button = (Button)findViewById(R.id.button);
+        button.setText("Start Test");
+        button.setOnClickListener(
+                new Button.OnClickListener() {
+                    public void onClick(View v) {
+                        if (!registered) {
+                            textView.setText("Please register!!!");
+                            return;
+                        }
+                        synchronized (lockRecord) {
+                            if (!shouldRecord) {
+                                button.setText("Stop");
+                                shouldRecord = true;
+                                record.startRecording();
+                                Log.i(LOG_TAG, "Start kws testing recording");
+                                startTestThread();
+                            } else {
+                                button.setText("Start Test");
+                                shouldRecord = false;
+                                record.stop();
+                                Log.i(LOG_TAG, "Recording for kws testing stopped");
+                            }
+                            lockRecord.notifyAll();
+                        }
+                    }
+                }
+        );
+        buttonRegister = (Button)findViewById(R.id.button_register);
+        buttonRegister.setOnClickListener(
+                new Button.OnClickListener() {
+                    public void onClick(View v) {
+                        synchronized (lockRecord) {
+                                shouldRecord = true;
+                                lockRecord.notifyAll();
+                        }
+                        record.startRecording();
+                        Log.i(LOG_TAG, "Start register recording");
+                        startRegisterThread();
+                    }
+                }
+        );
+        copyDataFile();
+        kws.init(netFile, cmvnFile, vadNetFile, vadCmvnFile);
+        initRecoder();
+        startRecordThread();
+    }
+
+    void initRecoder () {
+        // buffer size in bytes 1280
+        miniBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT);
+        if (miniBufferSize == AudioRecord.ERROR || miniBufferSize == AudioRecord.ERROR_BAD_VALUE) {
+            Log.e(LOG_TAG, "Audio buffer can't initialize!");
+            return;
+        }
+        record = new AudioRecord(MediaRecorder.AudioSource.DEFAULT,
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                miniBufferSize);
+        if (record.getState() != AudioRecord.STATE_INITIALIZED) {
+            Log.e(LOG_TAG, "Audio Record can't initialize!");
+            return;
+        }
+    }
+
+    double calculateDb(short[] buffer, int offset, int length) {
+        assert(offset + length < buffer.length);
+        double energy = 0.0;
+        for (int i = 0; i < length; i++) {
+            energy += buffer[offset + i] * buffer[offset + i];
+        }
+        energy /= length;
+        energy = (10 * Math.log10(1 + energy)) / 140;
+        energy = Math.min(energy, 1.0);
+        return energy;
+    }
+
+    short [] getChunkFromQueueBuffer() {
+        short [] buffer = null;
+        synchronized (queueLock) {
+            while (bufferQueue.size() == 0) {
+                try {
+                    queueLock.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            buffer = bufferQueue.poll();
+            queueLock.notifyAll();
+        }
+        assert(buffer != null);
+        return buffer;
+    }
+
+    void clearQueueBuffer() {
+        synchronized (queueLock) {
+            while (bufferQueue.size() > 0) {
+                bufferQueue.poll();
+            }
+            queueLock.notifyAll();
+        }
+    }
+
+    void startRecordThread() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO);
+                while (true) {
+                    synchronized (lockRecord) {
+                        while (!shouldRecord) {
+                            voiceView.zero();
+                            try {
+                                lockRecord.wait();
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                    short [] buffer = new short[miniBufferSize / 2];
+                    int points = record.read(buffer, 0, buffer.length);
+                    voiceView.add(calculateDb(buffer, 0, points));
+
+                    synchronized (queueLock) {
+                        // bufferQueue is full, just drop first chunk
+                        if (bufferQueue.size() == MAX_QUEUE_SIZE) {
+                            //Log.w(LOG_TAG, "buffer queue is full, drop one");
+                            bufferQueue.poll();
+                        }
+                        bufferQueue.offer(buffer);
+                        queueLock.notifyAll();
+                    }
+                }
+                //record.release();
+            }
+        }).start();
+    }
+
+    short [] convertListToArray(ArrayList<short[]> list) {
+        int size = 0;
+        for (short [] elem: list) size += elem.length;
+        assert (size > 0);
+        short [] pcm = new short[size];
+        int offset = 0;
+        for (short [] elem: list) {
+            for (short x: elem) {
+                pcm[offset++] = x;
+            }
+        }
+        return pcm;
+    }
+
+    void startRegisterThread() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // adapt background noise to webrtc vad for 4 seconds
+                runOnUiThread( new Runnable() {
+                    public void run() {
+                        textView.setText("register init, waiting ...");
+                    }
+                });
+                clearQueueBuffer();
+                ArrayList<short[]> allRegisteredAudioList = new ArrayList<short[]>();
+                kws.reset();
+                // register for 3 times
+                register_progress = 0;
+                while (register_progress < 3) {
+                    runOnUiThread( new Runnable() {
+                        public void run() {
+                            textView.setText(String.format("Registering %d/3", register_progress));
+                        }
+                    });
+                    short [] buffer = getChunkFromQueueBuffer();
+                    while (kws.isSilence(buffer)) {
+                        allRegisteredAudioList.add(buffer);
+                        buffer = getChunkFromQueueBuffer();
+                    }
+                    ArrayList<short[]> pcmList = new ArrayList<short[]>();
+                    while (!kws.endpointDetected(buffer)) {
+                        allRegisteredAudioList.add(buffer);
+                        pcmList.add(buffer);
+                        buffer = getChunkFromQueueBuffer();
+                    }
+                    allRegisteredAudioList.add(buffer);
+                    pcmList.add(buffer);
+                    kws.resetVad();
+                    //copy to pcm buffer
+                    short [] pcm = convertListToArray(pcmList);
+                    Log.i(LOG_TAG, String.format("pcm length %d", pcm.length));
+                    // BUG, theoretically, pcm.length should greater than endpointLength, but not find this bug
+                    if (pcm.length < endpointLength) continue;
+                    short [] template = Arrays.copyOfRange(pcm, 0, pcm.length - endpointLength);
+                    // ten frames 0.1s, maybe noise
+                    if (template.length < 1600) continue;
+
+                    if (template.length < MIN_TEMPLATE_SIZE || template.length > MAX_TEMPLATE_SIZE) {
+                        if (template.length < MIN_TEMPLATE_SIZE) {
+                            runOnUiThread(new Runnable() {
+                                public void run() {
+                                    statusTextView.setText("Speech is too short, try again");
+                                }
+                            });
+                        } else {
+                            runOnUiThread(new Runnable() {
+                                public void run() {
+                                    statusTextView.setText("Speech is too long, try again");
+                                }
+                            });
+                        }
+                        clearStatusTextView();
+                        continue;
+                    }
+
+                    Log.i(LOG_TAG, String.format("Registering %d template length %f",
+                            register_progress, (float)template.length / SAMPLE_RATE));
+                    // register
+                    kws.registerOnce(template);
+                    register_progress++;
+                } // while register_progress
+
+                synchronized (lockRecord) {
+                    shouldRecord = false;
+                    record.stop();
+                    Log.i(LOG_TAG, "Recording for register stopped");
+                    lockRecord.notifyAll();
+                }
+                clearStatusTextView();
+                kws.registerDone();
+                runOnUiThread( new Runnable() {
+                    public void run() {
+                        textView.setText("Register finished, go ahead for testing");
+                    }
+                });
+                registered = true;
+                short [] allPcm = convertListToArray(allRegisteredAudioList);
+                Log.i(LOG_TAG, String.format("Save to file %s", wavFile));
+                writeWavFile(allPcm, wavFile);
+            }
+        }).start();
+    }
+
+    void startTestThread() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // adapt background noise to webrtc vad for 4 seconds
+                runOnUiThread( new Runnable() {
+                    public void run() {
+                        textView.setText("testing...");
+                    }
+                });
+                clearQueueBuffer();
+                kws.resetVad();
+                while (true) {
+                    short [] buffer = getChunkFromQueueBuffer();
+                    while (kws.isSilence(buffer)) {
+                        buffer = getChunkFromQueueBuffer();
+                    }
+                    while (!kws.endpointDetected(buffer)) {
+                        buffer = getChunkFromQueueBuffer();
+                        boolean detected = kws.detectOnline(buffer, true);
+                        if (detected) {
+                            runOnUiThread( new Runnable() {
+                                public void run() {
+                                    statusTextView.setText("hot word detected");
+                                }
+                            });
+                        } else {
+                            runOnUiThread( new Runnable() {
+                                public void run() {
+                                    statusTextView.setText("");
+                                }
+                            });
+                        }
+                    }
+                    kws.resetVad();
+                    kws.resetDetector();
+                }
+            }
+        }).start();
+    }
+
+    void clearStatusTextView() {
+        if (statusTextView.getText() == "") return;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                runOnUiThread(new Runnable() {
+                    public void run() {
+                        statusTextView.setText("");
+                    }
+                });
+            }
+        }).start();
+    }
+
+    void writeWavFile(short []pcm, String path) {
+        File f = new File(path);
+        f.getParentFile().mkdirs();
+        if(f.exists()){
+            f.delete();
+        }
+        try {
+            RandomAccessFile randomAccessWriter = new RandomAccessFile(path, "rw");
+            randomAccessWriter.setLength(0);
+            randomAccessWriter.writeBytes("RIFF");
+            randomAccessWriter.writeInt(Integer.reverseBytes(36 + pcm.length * 1 * 16 / 8)); // Final file size not known yet, write 0
+            randomAccessWriter.writeBytes("WAVE");
+            randomAccessWriter.writeBytes("fmt ");
+            randomAccessWriter.writeInt(Integer.reverseBytes(16)); // Sub-chunk size, 16 for PCM
+            randomAccessWriter.writeShort(Short.reverseBytes((short) 1)); // AudioFormat, 1 for PCM
+            randomAccessWriter.writeShort(Short.reverseBytes((short) 1));// Number of channels, 1 for mono, 2 for stereo
+            randomAccessWriter.writeInt(Integer.reverseBytes(SAMPLE_RATE)); // Sample rate
+            randomAccessWriter.writeInt(Integer.reverseBytes(SAMPLE_RATE * 16 * 1 / 8)); // Byte rate, SampleRate*NumberOfChannels*BitsPerSample/8
+            randomAccessWriter.writeShort(Short.reverseBytes((short) (1 * 16 / 8))); // Block align, NumberOfChannels*BitsPerSample/8
+            randomAccessWriter.writeShort(Short.reverseBytes((short)16)); // Bits per sample
+            randomAccessWriter.writeBytes("data");
+            randomAccessWriter.writeInt(Integer.reverseBytes(pcm.length * 1 * 16 / 8)); // Data chunk size not known yet, write 0
+            for (int i = 0; i < pcm.length; i++) {
+                randomAccessWriter.writeShort(Short.reverseBytes(pcm[i]));
+            }
+            randomAccessWriter.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void copyDataFile() {
+        try {
+            copyBigDataTo("kws.net", netFile);
+            copyBigDataTo("kws.cmvn", cmvnFile);
+            copyBigDataTo("vad.net", vadNetFile);
+            copyBigDataTo("vad.cmvn", vadCmvnFile);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void copyBigDataTo(String assetName, String strOutFileName) throws IOException
+    {
+        InputStream myInput;
+        File file = new File(strOutFileName);
+        if (file.exists()) return;
+        OutputStream myOutput = new FileOutputStream(strOutFileName);
+        myInput = this.getAssets().open(assetName);
+        byte[] buffer = new byte[1024];
+        int length = myInput.read(buffer);
+        while(length > 0)
+        {
+            myOutput.write(buffer, 0, length);
+            length = myInput.read(buffer);
+        }
+        myOutput.flush();
+        myInput.close();
+        myOutput.close();
+    }
+}
