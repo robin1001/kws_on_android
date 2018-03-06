@@ -30,7 +30,7 @@ public:
     void Write(std::ostream &os) const;
     void Resize(const std::vector<int32_t> &shape);
     int32_t Size() const {
-        GetShapeSize(shape_);
+        return GetShapeSize(shape_);
     }
     DType *Data() const { return data_; } 
     std::vector<int32_t> Shape() const { return shape_; }
@@ -134,6 +134,7 @@ class Layer {
 public:
     Layer(int32_t in_dim = 0, int32_t out_dim = 0, LayerType type = kUnknown): 
         in_dim_(in_dim), out_dim_(out_dim), type_(type) {}
+    virtual ~Layer() {}
     void Read(std::istream &is);
     void Write(std::ostream &os);
     void Forward(const Matrix<float> &in, Matrix<float> *out);

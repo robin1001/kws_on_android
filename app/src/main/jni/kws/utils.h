@@ -27,7 +27,15 @@
          exit(-1); \
     } while (0)
 
-#endif
+#define CHECK(test) \
+    do { \
+        if (!(test)) { \
+            fprintf(stderr, "CHECK (%s: %s(): %d) %s \n", \
+                    __FILE__, __func__, __LINE__, #test); \
+                exit(-1); \
+        } \
+    } while (0)
+
 
 
 #define LOG_TAG ("Xiaogua")
@@ -38,3 +46,4 @@
 #define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN   , LOG_TAG, __VA_ARGS__))
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR  , LOG_TAG, __VA_ARGS__))
 
+#endif
