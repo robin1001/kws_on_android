@@ -4,10 +4,12 @@
 #include <string.h>
 #include <assert.h>
 
-//#include "kws/kws.h"
 #include "kws/feature-pipeline.h"
+#include "kws/kws.h"
 
 #include "com_example_binbzha_xiaogua_Kws.h"
+
+Kws *kws = NULL;
 
 JNIEXPORT jstring JNICALL Java_com_example_binbzha_xiaogua_Kws_Hello
   (JNIEnv *env, jobject jobj) {
@@ -17,7 +19,6 @@ JNIEXPORT jstring JNICALL Java_com_example_binbzha_xiaogua_Kws_Hello
 JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
   (JNIEnv *env, jobject jobj, jstring netFile, jstring cmvnFile,
   jstring fsmFile) {
-    assert(vad == NULL);
     assert(kws == NULL);
     const char *net_file= env->GetStringUTFChars(netFile, NULL);
     const char *cmvn_file= env->GetStringUTFChars(cmvnFile, NULL);
@@ -31,7 +32,13 @@ JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
     feature_config.left_context = 5;
     feature_config.right_context = 5;
     feature_config.cmvn_file = cmvn_file;
-    //kws = new DtwKws(dtw_config);
+
+    KwsConfig kws_config;
+    kws_config.feature_config = feature_config;
+    kws_config.net_file = net_file;
+    kws_config.fsm_file = fsm_file;
+    kws_config.thresh = 0.8;
+    kws = new Kws(kws_config);
 
     env->ReleaseStringUTFChars(netFile, net_file);
     env->ReleaseStringUTFChars(cmvnFile, cmvn_file);
@@ -47,14 +54,14 @@ JNIEXPORT jboolean JNICALL Java_com_example_binbzha_xiaogua_Kws_DetectOnline
     jsize size =  env->GetArrayLength(jarr);
     std::vector<float> data(size, 0.0);
     for (int i = 0; i < size; i++) data[i] = array[i];
-    //bool detected = kws->DetectOnline(data, end);
-    //env->ReleaseShortArrayElements(jarr, array, 0);
-    //return detected;
-    return true;
+    bool detected = kws->DetectOnline(data, end);
+    env->ReleaseShortArrayElements(jarr, array, 0);
+    return detected;
 }
 
 JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Reset
   (JNIEnv *env, jobject obj) {
-    //assert(kws != NULL);
-    //kws->Reset();
+    assert(kws != NULL);
+    kws->Reset();
 }
+
