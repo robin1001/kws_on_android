@@ -6,7 +6,6 @@
 #include "kws.h"
 
 bool Kws::DetectOnline(const std::vector<float> &wave, bool end_of_stream) {
-    // int num_frames = feature_pipeline_.NumFrames(wave.size());
     feature_pipeline_.AcceptRawWav(wave);
     if (end_of_stream) feature_pipeline_.SetDone();
     std::vector<float> feat;

@@ -5,6 +5,7 @@
 
 #include <string.h>
 
+#include <fstream>
 #include <queue>
 
 #include "fsm.h"
@@ -15,7 +16,7 @@ Fsm::~Fsm() {
 
 void Fsm::Reset() {
     start_ = 0;
-    for (int i = 0; i < states_.size(); i++) {
+    for (int32_t i = 0; i < states_.size(); i++) {
         if (states_[i] != NULL) {
             delete states_[i];
         }
@@ -24,17 +25,17 @@ void Fsm::Reset() {
     final_set_.clear();
 }
 
-int Fsm::AddState() {
-    int id = states_.size();
+int32_t Fsm::AddState() {
+    int32_t id = states_.size();
     states_.push_back(new State());
     return id;
 }
 
-void Fsm::AddArc(int id, const Arc &arc) {
-    int max = id > arc.next_state ? id : arc.next_state;
-    int old_size = states_.size();
+void Fsm::AddArc(int32_t id, const Arc &arc) {
+    int32_t max = id > arc.next_state ? id : arc.next_state;
+    int32_t old_size = states_.size();
     if (max >= old_size) {
-        for (int i = old_size; i < max + 1; i++) {
+        for (int32_t i = old_size; i < max + 1; i++) {
             states_.push_back(new State());
         }
     }
@@ -42,26 +43,26 @@ void Fsm::AddArc(int id, const Arc &arc) {
     states_[id]->AddArc(arc);
 }
 
-int Fsm::NumArcs() const {
-    int count = 0;
-    for (int i = 0; i < states_.size(); i++) {
+int32_t Fsm::NumArcs() const {
+    int32_t count = 0;
+    for (int32_t i = 0; i < states_.size(); i++) {
         count += states_[i]->NumArcs();
     }
     return count;
 }
 
-int Fsm::NumArcs(int id) const {
+int32_t Fsm::NumArcs(int32_t id) const {
     CHECK(id < states_.size());
     return states_[id]->NumArcs();
 }
 
 void Fsm::SortArcs() {
-    for (int i = 0; i < states_.size(); i++) {
+    for (int32_t i = 0; i < states_.size(); i++) {
         states_[i]->SortArcs();
     }
 }
 
-bool Fsm::IsFinal(int id) const {
+bool Fsm::IsFinal(int32_t id) const {
     return (final_set_.find(id) != final_set_.end());
 }
 
@@ -85,11 +86,11 @@ void Fsm::ReadTopo(const char *file) {
 
     char buffer[1024];
     bool first_line = true;
-    int src, dest, label;
+    int32_t src, dest, label;
     float weight = 0.0f;
 
     while(fgets(buffer, 1024, fp)) {
-        int num = sscanf(buffer, "%d %d %d %f", &src, &dest, &label, &weight);
+        int32_t num = sscanf(buffer, "%d %d %d %f", &src, &dest, &label, &weight);
         //LOG("read arc %d %d %d", src, dest, label);
         if (num == 3 || num == 4) {
             if (num == 3) weight = 0.0;
@@ -132,24 +133,25 @@ void Fsm::Read(const char *file) {
         ERROR("file %s not exist", file);
     }
 
-    int num_states, num_finals;
+    int32_t num_states = 0, num_finals = 0;
     // read start, state final number
     ReadBasic(fin, &num_states);
     ReadBasic(fin, &start_);
     ReadBasic(fin, &num_finals);
+    LOG("%d %d %d", num_states, start_, num_finals);
 
-    int state_id = 0;
+    int32_t state_id = 0;
     // read final set
-    for (int i = 0; i < num_finals; i++) {
+    for (int32_t i = 0; i < num_finals; i++) {
         fread(&state_id, sizeof(int), 1, fin);
         final_set_.insert(state_id);
     }
 
-    for (int i = 0; i < num_states; i++) {
+    for (int32_t i = 0; i < num_states; i++) {
         states_.push_back(new State());
     }
     // read state info
-    for (int i = 0; i < num_states; i++) {
+    for (int32_t i = 0; i < num_states; i++) {
         states_[i]->Read(fin);
     }
 
@@ -170,20 +172,20 @@ void Fsm::Write(const char *file) const {
         fout = fopen(file, "wb");
     }
 
-    int num_states = NumStates();
-    int num_finals = NumFinals();
+    int32_t num_states = NumStates();
+    int32_t num_finals = NumFinals();
     // write start, state & final number
     WriteBasic(fout, num_states);
     WriteBasic(fout, start_);
     WriteBasic(fout, num_finals);
 
-    std::unordered_set<int>::const_iterator it = final_set_.begin();
+    std::unordered_set<int32_t>::const_iterator it = final_set_.begin();
     // write final set
     for (; it != final_set_.end(); it++) {
         WriteBasic(fout, *it);
     }
     // write state info
-    for (int i = 0; i < num_states; i++) {
+    for (int32_t i = 0; i < num_states; i++) {
         states_[i]->Write(fout);
     }
 
@@ -201,16 +203,16 @@ void Fsm::Info() const {
     fprintf(stderr, "start id:\t%d\n", start_);
     // final set info
     fprintf(stderr, "final set:\t%d { ", NumFinals());
-    std::unordered_set<int>::const_iterator it = final_set_.begin();
+    std::unordered_set<int32_t>::const_iterator it = final_set_.begin();
     for (; it != final_set_.end(); it++) {
         fprintf(stderr, "%d ", *it);
     }
     fprintf(stderr, "}\n");
 
     // state info
-    for (int i = 0; i < states_.size(); i++) {
+    for (int32_t i = 0; i < states_.size(); i++) {
         fprintf(stderr, "state %d arcs %d: { ", i, states_[i]->NumArcs());
-        for (int j = 0; j < states_[i]->NumArcs(); j++) {
+        for (int32_t j = 0; j < states_[i]->NumArcs(); j++) {
             fprintf(stderr, "(%d, %f, %d) ", states_[i]->arcs[j].ilabel, 
                                              states_[i]->arcs[j].weight,
                                              states_[i]->arcs[j].next_state);
@@ -224,13 +226,13 @@ void Fsm::Dot(SymbolTable *symbol_table) const {
     printf("rankdir = LR;\n");
     // printf("orientation = Landscape;\n");
     printf("node [shape = \"circle\"]\n");
-    for (int i = 0; i < states_.size(); i++) {
+    for (int32_t i = 0; i < states_.size(); i++) {
         if (IsFinal(i)) {
             printf("%d [label = \"%d\" shape = doublecircle ]\n", i, i);
         } else {
             printf("%d [label = \"%d\" ]\n", i, i);
         }
-        for (int j = 0; j < states_[i]->NumArcs(); j++) {
+        for (int32_t j = 0; j < states_[i]->NumArcs(); j++) {
             if (symbol_table == NULL) {
                 printf("\t %d -> %d [label = \"%d/%f\" ]\n", i, 
                         states_[i]->arcs[j].next_state,

@@ -6,6 +6,7 @@
 
 #include "kws/feature-pipeline.h"
 #include "kws/kws.h"
+#include "kws/utils.h"
 
 #include "com_example_binbzha_xiaogua_Kws.h"
 
@@ -38,6 +39,7 @@ JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
     kws_config.net_file = net_file;
     kws_config.fsm_file = fsm_file;
     kws_config.thresh = 0.8;
+    LOG("where is my log");
     kws = new Kws(kws_config);
 
     env->ReleaseStringUTFChars(netFile, net_file);

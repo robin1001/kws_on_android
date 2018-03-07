@@ -27,6 +27,7 @@ public:
                                   keyword_spotter_(fsm_), 
                                   t_(0) {}
     void Reset() {
+        keyword_spotter_.Reset();
     }
 
     bool DetectOnline(const std::vector<float> &wave, bool end_of_stream = true);

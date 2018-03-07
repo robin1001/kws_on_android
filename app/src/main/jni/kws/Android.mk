@@ -19,10 +19,10 @@ $(warning "compile on armeabi-v7a")
 ifeq ($(GEMM), GEMMLOWP)
 $(warning "compile use gemmlowp")
 LOCAL_ARM_NEON := true
-LOCAL_CFLAGS += -mfpu=neon -mfloat-abi=softfp -D USE_GEMMLOWP
+LOCAL_CFLAGS += -mfpu=neon -mfloat-abi=softfp -D USE_GEMMLOWP -D USE_ANDROID_LOG
 else #BLAS
 $(warning "compile use blas")
-LOCAL_CFLAGS += -mfpu=neon -D USE_BLAS -D USE_GEMMLOWP
+LOCAL_CFLAGS += -mfpu=neon -D USE_BLAS -D USE_GEMMLOWP -D USE_ANDROID_LOG
 TARGET_LDFLAGS += -mfloat-abi=softfp -D ARM_SOFTFP_ABI=1
 TARGET_LDFLAGS += -Wl,--no-warn-mismatch 
 LOCAL_STATIC_LIBRARIES := blas

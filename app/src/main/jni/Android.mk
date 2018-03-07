@@ -9,8 +9,8 @@ LOCAL_SRC_FILES := xiaogua.cc
 
 LOCAL_STATIC_LIBRARIES := kws
 
-LOCAL_CFLAGS += -std=gnu++11
-LOCAL_LDLIBS += -llog
+LOCAL_CFLAGS += -std=gnu++11 -D USE_ANDROID_LOG
+LOCAL_LDLIBS += -llog -landroid
 
 include $(BUILD_SHARED_LIBRARY)
 

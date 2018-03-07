@@ -14,15 +14,17 @@ public class Kws {
         System.loadLibrary("xiaogua");
     }
 
-    void init(String netFile, String cmvnFile, String fsmFile) {
+    public void init(String netFile, String cmvnFile, String fsmFile) {
         Init(netFile, cmvnFile, fsmFile);
     }
 
-    boolean detectOnline(short []pcm, boolean end) {
+    public boolean detectOnline(short []pcm, boolean end) {
         return DetectOnline(pcm, end);
     }
 
-    void reset() {
+    public void reset() {
         Reset();
     }
+
+    public String hello() { return Hello(); }
 }

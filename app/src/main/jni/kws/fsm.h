@@ -19,7 +19,7 @@
 template<class T> 
 inline void ReadBasic(FILE *fin, T *t) {
     CHECK(t != NULL);
-    int size = fread(t, sizeof(*t), 1, fin);
+    int32_t size = fread(t, sizeof(*t), 1, fin);
     if (size != 1) {
         ERROR("Read failure in ReadBasic, file position is %ld",
               ftell(fin));
@@ -28,7 +28,7 @@ inline void ReadBasic(FILE *fin, T *t) {
 
 template<class T>
 inline void WriteBasic(FILE *fout, T t) {
-    int size = fwrite(&t, sizeof(t), 1, fout);
+    int32_t size = fwrite(&t, sizeof(t), 1, fout);
     if (size != 1) {
         ERROR("Write failure in WriteBasic.");
     }
@@ -36,7 +36,7 @@ inline void WriteBasic(FILE *fout, T t) {
 
 struct Arc {
     Arc() {}
-    Arc(int ilabel, float weight, int next_state): 
+    Arc(int32_t ilabel, float weight, int32_t next_state): 
         ilabel(ilabel), weight(weight), next_state(next_state) {}
 
     void Read(FILE *fin) {
@@ -55,9 +55,9 @@ struct Arc {
         return ilabel < arc.ilabel;
     }
 
-    int ilabel;
+    int32_t ilabel;
 	float weight;
-    int next_state;
+    int32_t next_state;
 };
 
 struct State {
@@ -67,7 +67,7 @@ struct State {
         arcs.push_back(arc);
     }
 
-    int NumArcs() const {
+    int32_t NumArcs() const {
         return arcs.size();
     }
 
@@ -76,19 +76,19 @@ struct State {
     }
 
     void Read(FILE *fin) {
-        int num_arcs = 0; 
+        int32_t num_arcs = 0; 
         ReadBasic(fin, &num_arcs);
         CHECK(num_arcs >= 0);
         arcs.resize(num_arcs);
-        for (int i = 0; i < num_arcs; i++) {
+        for (int32_t i = 0; i < num_arcs; i++) {
             arcs[i].Read(fin);
         }
     }
 
     void Write(FILE *fout) {
-        int num_arcs = arcs.size(); 
+        int32_t num_arcs = arcs.size(); 
         WriteBasic(fout, num_arcs);
-        for (int i = 0; i < num_arcs; i++) {
+        for (int32_t i = 0; i < num_arcs; i++) {
             arcs[i].Write(fout);
         }
     }
@@ -103,59 +103,60 @@ class Fsm {
 public:
     Fsm(): start_(0) {}
     Fsm(std::string file) { 
+        LOG("%s", file.c_str());
         Read(file.c_str());
     }
     ~Fsm(); 
     void Reset();
 
-    int Start() const { 
+    int32_t Start() const { 
         return start_; 
     }
 
-    int IsStart(int id) const {
+    int32_t IsStart(int32_t id) const {
         return id == start_;
     }
 
-    void SetStart(int id) {
+    void SetStart(int32_t id) {
 		CHECK(id < states_.size());
         start_ = id;
     }
 
-    void SetFinal(int id) {
+    void SetFinal(int32_t id) {
 		CHECK(id < states_.size());
         final_set_.insert(id);
     }
 
-    int NumFinals() const {
+    int32_t NumFinals() const {
         return final_set_.size();
     }
 
-    int NumStates() const {
+    int32_t NumStates() const {
         return states_.size();
     }
 
-    const Arc *ArcStart(int id) const {
+    const Arc *ArcStart(int32_t id) const {
 		CHECK(id < states_.size());
         return states_[id]->arcs.data();
     }
 
-    const Arc *ArcEnd(int id) const {
+    const Arc *ArcEnd(int32_t id) const {
 		CHECK(id < states_.size());
         return states_[id]->arcs.data() + states_[id]->arcs.size();
     }
 
-    const Arc *ArcSeek(int state_id, int arc_id) const {
+    const Arc *ArcSeek(int32_t state_id, int32_t arc_id) const {
 		CHECK(state_id < states_.size());
 		CHECK(arc_id < states_[state_id]->arcs.size());
         return &states_[state_id]->arcs[arc_id];
     }
 
-    int NumArcs() const;
-    int NumArcs(int id) const;
+    int32_t NumArcs() const;
+    int32_t NumArcs(int32_t id) const;
     void SortArcs();
-    bool IsFinal(int id) const;
-    int AddState();
-    void AddArc(int id, const Arc &arc);
+    bool IsFinal(int32_t id) const;
+    int32_t AddState();
+    void AddArc(int32_t id, const Arc &arc);
     void ReadTopo(const char *file);
 	void Read(const char *file); //read fsm from file
 	void Write(const char *file) const; // write fsm to file
@@ -211,7 +212,7 @@ public:
 //    void MinimizeOnly(Fsm *fsm_out) const;
 //    void GetLabelSet(const std::unordered_set<int> &state_set, 
 //            std::unordered_set<int> *label_set) const;
-//    void Move(const std::unordered_set<int> &in_set, int label, 
+//    void Move(const std::unordered_set<int> &in_set, int32_t label, 
 //            std::unordered_set<int> *out_set) const; 
 //    bool IsSubset(const std::unordered_set<int> &set0, 
 //            const std::unordered_set<int> &set1) const; 
@@ -225,8 +226,8 @@ public:
 //    std::unordered_set<int>* FindSet(const std::unordered_set<int> &s,
 //            const std::unordered_set<std::unordered_set<int> *> &set_set) const; 
 protected:
-    int start_;
-    std::unordered_set<int> final_set_;
+    int32_t start_;
+    std::unordered_set<int32_t> final_set_;
     std::vector<State *> states_;
     DISALLOW_COPY_AND_ASSIGN(Fsm);
 };

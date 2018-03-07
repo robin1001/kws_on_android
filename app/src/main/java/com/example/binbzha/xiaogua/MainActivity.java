@@ -55,8 +55,9 @@ public class MainActivity extends AppCompatActivity {
         textView = ((TextView)findViewById(R.id.text_view));
         statusTextView = ((TextView)findViewById(R.id.status_text_view));
         voiceView = (VoiceRectView)(findViewById(R.id.voice_rect_view));
-        //copyDataFile();
-        //kws.init(netFile, cmvnFile, fsmFile);
+        copyDataFile();
+        textView.setText(kws.hello());
+        kws.init(netFile, cmvnFile, fsmFile);
 
         initRecoder();
         startRecordThread();
@@ -257,7 +258,6 @@ public class MainActivity extends AppCompatActivity {
     {
         InputStream myInput;
         File file = new File(strOutFileName);
-        if (file.exists()) return;
         OutputStream myOutput = new FileOutputStream(strOutFileName);
         myInput = this.getAssets().open(assetName);
         byte[] buffer = new byte[1024];
