@@ -39,7 +39,7 @@ JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
     kws_config.feature_config = feature_config;
     kws_config.net_file = net_file;
     kws_config.fsm_file = fsm_file;
-    kws_config.thresh = 0.8;
+    kws_config.thresh = 0.1;
     kws = new Kws(kws_config);
 
     env->ReleaseStringUTFChars(netFile, net_file);

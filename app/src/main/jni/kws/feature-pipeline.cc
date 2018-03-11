@@ -43,12 +43,10 @@ void FeaturePipeline::AcceptRawWav(const std::vector<float> &wav) {
         //printf("\n");
     }
     if (feature_buf_.size() == 0 && left_context_ > 0) { 
-        config_.Info();
         for (int i = 0; i < left_context_; i++) {
             feature_buf_.insert(feature_buf_.end(), 
                                 feat.begin(), feat.begin() + raw_feat_dim_);
         }
-        config_.Info();
     }
     feature_buf_.insert(feature_buf_.end(), feat.begin(), feat.end());
     num_frames_ += num_frames;

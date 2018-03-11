@@ -5,12 +5,17 @@ import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.os.Environment;
 import android.os.Process;
+import android.support.v4.view.GestureDetectorCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,6 +39,8 @@ public class MainActivity extends AppCompatActivity {
 
     AudioRecord record = null;
     TextView textView = null;
+    SeekBar seekBar = null;
+    GestureDetectorCompat gestureDetector = null;
     VoiceRectView voiceView = null;
     static Object lockRecord = new Object();
     static Object queueLock = new Object();
@@ -44,6 +51,8 @@ public class MainActivity extends AppCompatActivity {
     private String netFile = "data/data/com.example.binbzha.xiaogua/kws.net";
     private String cmvnFile = "data/data/com.example.binbzha.xiaogua/kws.cmvn";
     private String fsmFile = "data/data/com.example.binbzha.xiaogua/kws.fsm";
+    private final int kMax = 100;
+    private float confidence = 0.2f;
 
     // keep same with endpoint_thresh in xiaogua.cc
     private int endpointLength = 6400; // 0.5 * 16000
@@ -53,13 +62,50 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         textView = ((TextView)findViewById(R.id.text_view));
         voiceView = (VoiceRectView)(findViewById(R.id.voice_rect_view));
-        copyDataFile();
+        seekBar = (SeekBar)(findViewById(R.id.seek_bar));
+        seekBar.setMax(kMax);
+        seekBar.setProgress((int)(confidence * kMax));
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                confidence = (float)progress / kMax;
+                textView.setText(String.format("threshold %.2f", confidence));
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                kws.setThresh(confidence);
+            }
+        });
+        seekBar.setVisibility(View.INVISIBLE);
+        gestureDetector = new GestureDetectorCompat(this, new MyGestureListener());
         textView.setText(kws.hello());
+        copyDataFile();
         kws.init(netFile, cmvnFile, fsmFile);
-
+        kws.setThresh(confidence);
         initRecoder();
         startRecordThread();
         startKwsThread();
+    }
+
+    public boolean onTouchEvent(MotionEvent event){
+        gestureDetector.onTouchEvent(event);
+        return super.onTouchEvent(event);
+    }
+
+    class MyGestureListener extends GestureDetector.SimpleOnGestureListener {
+        private static final String DEBUG_TAG = "Gestures";
+        @Override
+        public boolean onDoubleTap(MotionEvent event) {
+            if (seekBar.getVisibility() == View.VISIBLE) {
+                seekBar.setVisibility(View.INVISIBLE);
+            } else {
+                seekBar.setVisibility(View.VISIBLE);
+            }
+            return true;
+        }
     }
 
     void initRecoder () {
@@ -176,7 +222,7 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             });
                             try {
-                                Thread.sleep(1000);
+                                Thread.sleep(2000);
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
@@ -186,41 +232,11 @@ public class MainActivity extends AppCompatActivity {
                                     textView.setText("");
                                 }
                             });
+                            kws.reset();
                         }
                     }
                 }
         }).start();
-    }
-
-    void writeWavFile(short []pcm, String path) {
-        File f = new File(path);
-        f.getParentFile().mkdirs();
-        if(f.exists()){
-            f.delete();
-        }
-        try {
-            RandomAccessFile randomAccessWriter = new RandomAccessFile(path, "rw");
-            randomAccessWriter.setLength(0);
-            randomAccessWriter.writeBytes("RIFF");
-            randomAccessWriter.writeInt(Integer.reverseBytes(36 + pcm.length * 1 * 16 / 8)); // Final file size not known yet, write 0
-            randomAccessWriter.writeBytes("WAVE");
-            randomAccessWriter.writeBytes("fmt ");
-            randomAccessWriter.writeInt(Integer.reverseBytes(16)); // Sub-chunk size, 16 for PCM
-            randomAccessWriter.writeShort(Short.reverseBytes((short) 1)); // AudioFormat, 1 for PCM
-            randomAccessWriter.writeShort(Short.reverseBytes((short) 1));// Number of channels, 1 for mono, 2 for stereo
-            randomAccessWriter.writeInt(Integer.reverseBytes(SAMPLE_RATE)); // Sample rate
-            randomAccessWriter.writeInt(Integer.reverseBytes(SAMPLE_RATE * 16 * 1 / 8)); // Byte rate, SampleRate*NumberOfChannels*BitsPerSample/8
-            randomAccessWriter.writeShort(Short.reverseBytes((short) (1 * 16 / 8))); // Block align, NumberOfChannels*BitsPerSample/8
-            randomAccessWriter.writeShort(Short.reverseBytes((short)16)); // Bits per sample
-            randomAccessWriter.writeBytes("data");
-            randomAccessWriter.writeInt(Integer.reverseBytes(pcm.length * 1 * 16 / 8)); // Data chunk size not known yet, write 0
-            for (int i = 0; i < pcm.length; i++) {
-                randomAccessWriter.writeShort(Short.reverseBytes(pcm[i]));
-            }
-            randomAccessWriter.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     private void copyDataFile() {

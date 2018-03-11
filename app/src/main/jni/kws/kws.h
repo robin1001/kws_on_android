@@ -25,11 +25,13 @@ public:
                                   net_(config.net_file),
                                   fsm_(config.fsm_file), 
                                   keyword_spotter_(fsm_), 
-                                  t_(0) {}
+                                  t_(0) {
+        keyword_spotter_.SetSpotThreshold(kws_config_.thresh); 
+    }
     void Reset() {
         t_ = 0;
         feature_pipeline_.Reset();
-        //keyword_spotter_.Reset();
+        keyword_spotter_.Reset();
     }
 
     bool DetectOnline(const std::vector<float> &wave, bool end_of_stream = true);
