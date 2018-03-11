@@ -39,6 +39,14 @@ JNIEXPORT jboolean JNICALL Java_com_example_binbzha_xiaogua_Kws_DetectOnline
 JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Reset
   (JNIEnv *, jobject);
 
+/*
+ * Class:     com_example_binbzha_xiaogua_Kws
+ * Method:    SetThresh
+ * Signature: (F)V
+ */
+JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_SetThresh
+  (JNIEnv *, jobject, jfloat);
+
 #ifdef __cplusplus
 }
 #endif

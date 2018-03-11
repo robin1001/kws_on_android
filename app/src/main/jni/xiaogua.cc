@@ -11,6 +11,8 @@
 #include "com_example_binbzha_xiaogua_Kws.h"
 
 Kws *kws = NULL;
+// Must keep KwsConfig a global variable, it is refered in kws modules
+KwsConfig kws_config;
 
 JNIEXPORT jstring JNICALL Java_com_example_binbzha_xiaogua_Kws_Hello
   (JNIEnv *env, jobject jobj) {
@@ -20,7 +22,7 @@ JNIEXPORT jstring JNICALL Java_com_example_binbzha_xiaogua_Kws_Hello
 JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
   (JNIEnv *env, jobject jobj, jstring netFile, jstring cmvnFile,
   jstring fsmFile) {
-    assert(kws == NULL);
+    CHECK(kws == NULL);
     const char *net_file= env->GetStringUTFChars(netFile, NULL);
     const char *cmvn_file= env->GetStringUTFChars(cmvnFile, NULL);
     const char *fsm_file= env->GetStringUTFChars(fsmFile, NULL);
@@ -34,12 +36,10 @@ JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
     feature_config.right_context = 5;
     feature_config.cmvn_file = cmvn_file;
 
-    KwsConfig kws_config;
     kws_config.feature_config = feature_config;
     kws_config.net_file = net_file;
     kws_config.fsm_file = fsm_file;
     kws_config.thresh = 0.8;
-    LOG("where is my log");
     kws = new Kws(kws_config);
 
     env->ReleaseStringUTFChars(netFile, net_file);
@@ -50,7 +50,7 @@ JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
 
 JNIEXPORT jboolean JNICALL Java_com_example_binbzha_xiaogua_Kws_DetectOnline
   (JNIEnv *env, jobject obj, jshortArray jarr, jboolean end) {
-    assert(kws != NULL);
+    CHECK(kws != NULL);
     jshort *array = env->GetShortArrayElements(jarr, NULL); 
     if (NULL == array) return false;
     jsize size =  env->GetArrayLength(jarr);
@@ -63,7 +63,13 @@ JNIEXPORT jboolean JNICALL Java_com_example_binbzha_xiaogua_Kws_DetectOnline
 
 JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Reset
   (JNIEnv *env, jobject obj) {
-    assert(kws != NULL);
+    CHECK(kws != NULL);
     kws->Reset();
+}
+
+JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_SetThresh
+  (JNIEnv *env, jobject obj, jfloat thresh) {
+    CHECK(kws != NULL);
+    kws->SetThresh(thresh);
 }
 

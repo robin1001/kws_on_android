@@ -103,7 +103,6 @@ class Fsm {
 public:
     Fsm(): start_(0) {}
     Fsm(std::string file) { 
-        LOG("%s", file.c_str());
         Read(file.c_str());
     }
     ~Fsm(); 

@@ -9,6 +9,7 @@ public class Kws {
     private native void Init(String netFile, String cmvnFile, String fsmFile);
     private native boolean DetectOnline(short []pcm, boolean end);
     private native void Reset();
+    private native void SetThresh(float thresh);
 
     static {
         System.loadLibrary("xiaogua");
@@ -27,4 +28,8 @@ public class Kws {
     }
 
     public String hello() { return Hello(); }
+
+    public void setThresh(float thresh) {
+        SetThresh(thresh);
+    }
 }

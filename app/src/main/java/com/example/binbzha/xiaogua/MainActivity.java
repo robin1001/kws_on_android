@@ -34,7 +34,6 @@ public class MainActivity extends AppCompatActivity {
 
     AudioRecord record = null;
     TextView textView = null;
-    TextView statusTextView = null;
     VoiceRectView voiceView = null;
     static Object lockRecord = new Object();
     static Object queueLock = new Object();
@@ -53,7 +52,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         textView = ((TextView)findViewById(R.id.text_view));
-        statusTextView = ((TextView)findViewById(R.id.status_text_view));
         voiceView = (VoiceRectView)(findViewById(R.id.voice_rect_view));
         copyDataFile();
         textView.setText(kws.hello());
@@ -61,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
 
         initRecoder();
         startRecordThread();
+        startKwsThread();
     }
 
     void initRecoder () {
@@ -166,50 +165,30 @@ public class MainActivity extends AppCompatActivity {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                // adapt background noise to webrtc vad for 4 seconds
-                runOnUiThread( new Runnable() {
-                    public void run() {
-                        textView.setText("testing...");
-                    }
-                });
                 clearQueueBuffer();
                 while (true) {
                     short [] buffer = getChunkFromQueueBuffer();
-                    boolean detected = kws.detectOnline(buffer, true);
+                    boolean detected = kws.detectOnline(buffer, false);
                     if (detected) {
                             runOnUiThread( new Runnable() {
                                 public void run() {
-                                    statusTextView.setText("hot word detected");
+                                    textView.setText("detected");
                                 }
                             });
-                    } else {
+                            try {
+                                Thread.sleep(1000);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                            clearQueueBuffer();
                             runOnUiThread( new Runnable() {
                                 public void run() {
-                                    statusTextView.setText("");
+                                    textView.setText("");
                                 }
                             });
                         }
                     }
                 }
-        }).start();
-    }
-
-    void clearStatusTextView() {
-        if (statusTextView.getText() == "") return;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                runOnUiThread(new Runnable() {
-                    public void run() {
-                        statusTextView.setText("");
-                    }
-                });
-            }
         }).start();
     }
 

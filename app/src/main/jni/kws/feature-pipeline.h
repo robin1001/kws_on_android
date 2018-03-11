@@ -27,6 +27,13 @@ struct FeaturePipelineConfig {
         left_context(10),
         right_context(5) {
     }
+
+    void Info() const {
+        LOG("feature pipeline config\n");
+        LOG("num_bins %d", num_bins);
+        LOG("frame_length %d", frame_length);
+        LOG("frame_shift %d", frame_shift);
+    }
 };
 
 class FeaturePipeline {

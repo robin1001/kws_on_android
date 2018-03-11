@@ -27,7 +27,9 @@ public:
                                   keyword_spotter_(fsm_), 
                                   t_(0) {}
     void Reset() {
-        keyword_spotter_.Reset();
+        t_ = 0;
+        feature_pipeline_.Reset();
+        //keyword_spotter_.Reset();
     }
 
     bool DetectOnline(const std::vector<float> &wave, bool end_of_stream = true);
@@ -44,7 +46,5 @@ private:
     KeywordSpot keyword_spotter_;
     int t_;
 };
-
-
 
 #endif
