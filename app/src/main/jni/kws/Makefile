@@ -6,9 +6,16 @@ OBJ = fsm.o
 
 BIN = tools/fsm-info tools/fsm-init
 
-TEST = 
+SRC = utils.h net.h net.cc fft.h fft.cc fbank.h \
+      feature-pipeline.h feature-pipeline.cc
 
 all: $(TEST) $(BIN) $(OBJ)
+
+check:
+	for file in $(SRC); do \
+		echo $$file; \
+        cpplint --filter=-build/header_guard,-readability/check,-build/include_subdir $$file; \
+	done
 
 test/%: test/%.cc $(OBJ)
 	$(CXX) $< $(OBJ) $(CXXFLAGS) -o $@
