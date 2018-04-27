@@ -11,7 +11,7 @@
 #include "com_example_binbzha_xiaogua_Kws.h"
 
 Kws *kws = NULL;
-// Must keep KwsConfig a global variable, it is refered in kws modules
+//// Must keep KwsConfig a global variable, it is refered in kws modules
 KwsConfig kws_config;
 
 JNIEXPORT jstring JNICALL Java_com_example_binbzha_xiaogua_Kws_Hello
@@ -21,11 +21,12 @@ JNIEXPORT jstring JNICALL Java_com_example_binbzha_xiaogua_Kws_Hello
 
 JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
   (JNIEnv *env, jobject jobj, jstring netFile, jstring cmvnFile,
-  jstring fsmFile) {
+  jstring fstFile, jstring fillerFile) {
     CHECK(kws == NULL);
     const char *net_file= env->GetStringUTFChars(netFile, NULL);
     const char *cmvn_file= env->GetStringUTFChars(cmvnFile, NULL);
-    const char *fsm_file= env->GetStringUTFChars(fsmFile, NULL);
+    const char *fst_file= env->GetStringUTFChars(fstFile, NULL);
+    const char *filler_file= env->GetStringUTFChars(fillerFile, NULL);
     
     FeaturePipelineConfig feature_config;
     feature_config.num_bins = 40;
@@ -38,16 +39,20 @@ JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
 
     kws_config.feature_config = feature_config;
     kws_config.net_file = net_file;
-    kws_config.fsm_file = fsm_file;
-    kws_config.thresh = 0.1;
+    kws_config.fst_file = fst_file;
+    kws_config.filler_table_file = filler_file;
+    kws_config.thresh = 0.0;
+    kws_config.min_keyword_frames = 0;
+    kws_config.min_frames_for_last_state = 0;
     kws = new Kws(kws_config);
 
     env->ReleaseStringUTFChars(netFile, net_file);
     env->ReleaseStringUTFChars(cmvnFile, cmvn_file);
-    env->ReleaseStringUTFChars(fsmFile, fsm_file);
+    env->ReleaseStringUTFChars(fstFile, fst_file);
+    env->ReleaseStringUTFChars(fillerFile, filler_file);
 }
-
-
+ 
+ 
 JNIEXPORT jboolean JNICALL Java_com_example_binbzha_xiaogua_Kws_DetectOnline
   (JNIEnv *env, jobject obj, jshortArray jarr, jboolean end) {
     CHECK(kws != NULL);
@@ -56,11 +61,13 @@ JNIEXPORT jboolean JNICALL Java_com_example_binbzha_xiaogua_Kws_DetectOnline
     jsize size =  env->GetArrayLength(jarr);
     std::vector<float> data(size, 0.0);
     for (int i = 0; i < size; i++) data[i] = array[i];
-    bool detected = kws->DetectOnline(data, end);
+    float confidence = 0.0f;
+    int32_t keyword = 0;
+    bool legal = kws->DetectOnline(data, end, &confidence, &keyword);
     env->ReleaseShortArrayElements(jarr, array, 0);
-    return detected;
+    return legal;
 }
-
+ 
 JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Reset
   (JNIEnv *env, jobject obj) {
     CHECK(kws != NULL);

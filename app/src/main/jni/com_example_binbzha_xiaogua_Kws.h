@@ -21,7 +21,7 @@ JNIEXPORT jstring JNICALL Java_com_example_binbzha_xiaogua_Kws_Hello
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
-  (JNIEnv *, jobject, jstring, jstring, jstring);
+  (JNIEnv *, jobject, jstring, jstring, jstring, jstring);
 
 /*
  * Class:     com_example_binbzha_xiaogua_Kws

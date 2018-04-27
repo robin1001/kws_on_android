@@ -7,7 +7,9 @@ OBJ = fsm.o
 BIN = tools/fsm-info tools/fsm-init
 
 SRC = utils.h net.h net.cc fft.h fft.cc fbank.h \
-      feature-pipeline.h feature-pipeline.cc
+      feature-pipeline.h feature-pipeline.cc \
+      fst.h fst.cc symbol-table.h \
+      keyword-spot.h kws.h kws.cc
 
 all: $(TEST) $(BIN) $(OBJ)
 

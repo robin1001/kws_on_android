@@ -9,7 +9,7 @@ include $(PREBUILT_STATIC_LIBRARY)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := kws
-LOCAL_SRC_FILES := kws.cc fsm.cc net.cc feature-pipeline.cc fft.cc
+LOCAL_SRC_FILES := kws.cc fst.cc net.cc feature-pipeline.cc fft.cc
 
 GEMM := BLAS
 

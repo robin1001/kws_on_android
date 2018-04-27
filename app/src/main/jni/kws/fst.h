@@ -17,7 +17,6 @@
 #define FST_H_
 
 #include <stdio.h>
-
 #include <vector>
 #include <string>
 #include <iostream>

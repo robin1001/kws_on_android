@@ -17,7 +17,6 @@
 #include <cblas.h>
 #endif   // USE_BLAS
 #include <math.h>
-
 #include <tuple>
 #include <algorithm>
 

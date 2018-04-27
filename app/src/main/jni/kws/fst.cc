@@ -14,7 +14,6 @@
 // limitations under the License.
 
 #include <string.h>
-
 #include <fstream>
 
 #include "fst.h"
