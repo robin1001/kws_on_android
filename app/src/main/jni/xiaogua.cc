@@ -44,6 +44,7 @@ JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
     kws_config.thresh = 0.0;
     kws_config.min_keyword_frames = 0;
     kws_config.min_frames_for_last_state = 0;
+    LOG("start init");
     kws = new Kws(kws_config);
 
     env->ReleaseStringUTFChars(netFile, net_file);
@@ -53,19 +54,31 @@ JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
 }
  
  
-JNIEXPORT jboolean JNICALL Java_com_example_binbzha_xiaogua_Kws_DetectOnline
+JNIEXPORT jobject JNICALL Java_com_example_binbzha_xiaogua_Kws_DetectOnline
   (JNIEnv *env, jobject obj, jshortArray jarr, jboolean end) {
     CHECK(kws != NULL);
     jshort *array = env->GetShortArrayElements(jarr, NULL); 
-    if (NULL == array) return false;
+    // if (NULL == array) return false;
     jsize size =  env->GetArrayLength(jarr);
     std::vector<float> data(size, 0.0);
     for (int i = 0; i < size; i++) data[i] = array[i];
     float confidence = 0.0f;
     int32_t keyword = 0;
     bool legal = kws->DetectOnline(data, end, &confidence, &keyword);
+    // bool legal = true;
+
+    jclass jClass = env->FindClass("com/example/binbzha/xiaogua/Status");
+    jfieldID jlegal = env->GetFieldID(jClass, "legal", "Z");
+    jfieldID jconfidence = env->GetFieldID(jClass, "confidence", "F");
+    jfieldID jkeyword = env->GetFieldID(jClass, "keyword", "I");
+
+    jobject jstatus = env->AllocObject(jClass);
+    env->SetBooleanField(jstatus, jlegal, legal);
+    env->SetFloatField(jstatus, jconfidence, confidence);
+    env->SetIntField(jstatus, jkeyword, keyword);
+
     env->ReleaseShortArrayElements(jarr, array, 0);
-    return legal;
+    return jstatus;
 }
  
 JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Reset

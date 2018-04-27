@@ -18,7 +18,7 @@ JNIEXPORT jstring JNICALL Java_com_example_binbzha_xiaogua_Kws_Hello
 /*
  * Class:     com_example_binbzha_xiaogua_Kws
  * Method:    Init
- * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+ * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
  */
 JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
   (JNIEnv *, jobject, jstring, jstring, jstring, jstring);
@@ -26,9 +26,9 @@ JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
 /*
  * Class:     com_example_binbzha_xiaogua_Kws
  * Method:    DetectOnline
- * Signature: ([SZ)Z
+ * Signature: ([SZ)Lcom/example/binbzha/xiaogua/Status;
  */
-JNIEXPORT jboolean JNICALL Java_com_example_binbzha_xiaogua_Kws_DetectOnline
+JNIEXPORT jobject JNICALL Java_com_example_binbzha_xiaogua_Kws_DetectOnline
   (JNIEnv *, jobject, jshortArray, jboolean);
 
 /*

@@ -46,11 +46,13 @@ public class MainActivity extends AppCompatActivity {
     static Object queueLock = new Object();
 
     Kws kws = new Kws();
+    Status status = null;
 
     private final String wavFile =  Environment.getExternalStorageDirectory() + "/register.wav";
     private String netFile = "data/data/com.example.binbzha.xiaogua/kws.net";
     private String cmvnFile = "data/data/com.example.binbzha.xiaogua/kws.cmvn";
-    private String fsmFile = "data/data/com.example.binbzha.xiaogua/kws.fsm";
+    private String fstFile = "data/data/com.example.binbzha.xiaogua/kws.fst";
+    private String fillerFile = "data/data/com.example.binbzha.xiaogua/kws.filler";
     private final int kMax = 100;
     private float confidence = 0.2f;
 
@@ -83,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
         gestureDetector = new GestureDetectorCompat(this, new MyGestureListener());
         textView.setText(kws.hello());
         copyDataFile();
-        kws.init(netFile, cmvnFile, fsmFile);
+        kws.init(netFile, cmvnFile, fstFile, fillerFile);
         kws.setThresh(confidence);
         initRecoder();
         startRecordThread();
@@ -214,11 +216,12 @@ public class MainActivity extends AppCompatActivity {
                 clearQueueBuffer();
                 while (true) {
                     short [] buffer = getChunkFromQueueBuffer();
-                    boolean detected = kws.detectOnline(buffer, false);
-                    if (detected) {
+                    status = kws.detectOnline(buffer, false);
+                    if (status.legal) {
+                        Log.w(LOG_TAG, String.format("Spotting: %f %d", status.confidence, status.keyword));
                             runOnUiThread( new Runnable() {
                                 public void run() {
-                                    textView.setText("detected");
+                                    textView.setText(String.format("%d %f", status.keyword, status.confidence));
                                 }
                             });
                             try {
@@ -243,7 +246,8 @@ public class MainActivity extends AppCompatActivity {
         try {
             copyBigDataTo("kws.net", netFile);
             copyBigDataTo("kws.cmvn", cmvnFile);
-            copyBigDataTo("kws.fsm", fsmFile);
+            copyBigDataTo("kws.fst", fstFile);
+            copyBigDataTo("kws.filler", fillerFile);
         } catch (Exception e) {
             e.printStackTrace();
         }
