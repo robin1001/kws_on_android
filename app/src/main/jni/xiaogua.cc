@@ -43,8 +43,7 @@ JNIEXPORT void JNICALL Java_com_example_binbzha_xiaogua_Kws_Init
     kws_config.filler_table_file = filler_file;
     kws_config.thresh = 0.0;
     kws_config.min_keyword_frames = 0;
-    kws_config.min_frames_for_last_state = 0;
-    LOG("start init");
+    kws_config.min_frames_for_last_state = 10;
     kws = new Kws(kws_config);
 
     env->ReleaseStringUTFChars(netFile, net_file);

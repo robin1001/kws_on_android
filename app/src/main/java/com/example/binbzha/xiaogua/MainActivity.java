@@ -25,6 +25,8 @@ import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Timer;
@@ -39,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
 
     AudioRecord record = null;
     TextView textView = null;
+    TextView tipTextView = null;
     SeekBar seekBar = null;
     GestureDetectorCompat gestureDetector = null;
     VoiceRectView voiceView = null;
@@ -55,14 +58,16 @@ public class MainActivity extends AppCompatActivity {
     private String fillerFile = "data/data/com.example.binbzha.xiaogua/kws.filler";
     private final int kMax = 100;
     private float confidence = 0.2f;
-
+    private Hashtable<Integer, String> keywordTable = new Hashtable<Integer, String>();
+    private Hashtable<Integer, Float> confidenceTable = new Hashtable<Integer, Float>();
     // keep same with endpoint_thresh in xiaogua.cc
     private int endpointLength = 6400; // 0.5 * 16000
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        textView = ((TextView)findViewById(R.id.text_view));
+        textView = (TextView)findViewById(R.id.text_view);
+        tipTextView =(TextView)findViewById(R.id.tip_text_view);
         voiceView = (VoiceRectView)(findViewById(R.id.voice_rect_view));
         seekBar = (SeekBar)(findViewById(R.id.seek_bar));
         seekBar.setMax(kMax);
@@ -78,13 +83,25 @@ public class MainActivity extends AppCompatActivity {
             }
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                kws.setThresh(confidence);
+                //kws.setThresh(confidence);
             }
         });
         seekBar.setVisibility(View.INVISIBLE);
         gestureDetector = new GestureDetectorCompat(this, new MyGestureListener());
-        textView.setText(kws.hello());
+
+        // Keyword spotting related initialization
+        keywordTable.put(1, "你好小瓜");
+        confidenceTable.put(1, 0.2f);
+        String tipString = "Speak the following words to trigger\n";
+        Enumeration keys = keywordTable.keys();
+        while (keys.hasMoreElements()) {
+            Integer key = (Integer)keys.nextElement();
+            tipString = tipString + "\n" + keywordTable.get(key);
+        }
+        tipTextView.setText(tipString);
+
         copyDataFile();
+        textView.setText(kws.hello());
         kws.init(netFile, cmvnFile, fstFile, fillerFile);
         kws.setThresh(confidence);
         initRecoder();
@@ -221,11 +238,14 @@ public class MainActivity extends AppCompatActivity {
                         Log.w(LOG_TAG, String.format("Spotting: %f %d", status.confidence, status.keyword));
                             runOnUiThread( new Runnable() {
                                 public void run() {
-                                    textView.setText(String.format("%d %f", status.keyword, status.confidence));
+                                    textView.setText(String.format("%s %f %s",
+                                            keywordTable.get(status.keyword),
+                                            status.confidence,
+                                            status.confidence > confidenceTable.get(status.keyword) ? "accepted" : "rejected"));
                                 }
                             });
                             try {
-                                Thread.sleep(2000);
+                                Thread.sleep(1000);
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
