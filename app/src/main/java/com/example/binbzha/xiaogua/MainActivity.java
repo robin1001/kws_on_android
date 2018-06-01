@@ -91,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Keyword spotting related initialization
         keywordTable.put(1, "你好小瓜");
-        confidenceTable.put(1, 0.2f);
+        confidenceTable.put(1, 0.1f);
         String tipString = "Speak the following words to trigger\n";
         Enumeration keys = keywordTable.keys();
         while (keys.hasMoreElements()) {
@@ -234,9 +234,10 @@ public class MainActivity extends AppCompatActivity {
                 while (true) {
                     short [] buffer = getChunkFromQueueBuffer();
                     status = kws.detectOnline(buffer, false);
-                    if (status.legal) {
+                    if (status.legal && status.confidence > 0.001) {
                         Log.w(LOG_TAG, String.format("Spotting: %f %d", status.confidence, status.keyword));
-                            runOnUiThread( new Runnable() {
+                        if (status.confidence > confidenceTable.get(status.keyword)) {
+                            runOnUiThread(new Runnable() {
                                 public void run() {
                                     textView.setText(String.format("%s %f %s",
                                             keywordTable.get(status.keyword),
@@ -244,13 +245,14 @@ public class MainActivity extends AppCompatActivity {
                                             status.confidence > confidenceTable.get(status.keyword) ? "accepted" : "rejected"));
                                 }
                             });
+
                             try {
                                 Thread.sleep(1000);
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
                             clearQueueBuffer();
-                            runOnUiThread( new Runnable() {
+                            runOnUiThread(new Runnable() {
                                 public void run() {
                                     textView.setText("");
                                 }
@@ -259,6 +261,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                 }
+            }
         }).start();
     }
 
