@@ -267,8 +267,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void copyDataFile() {
         try {
-            copyBigDataTo("kws.net.v2", netFile);
-            copyBigDataTo("kws.cmvn.v2", cmvnFile);
+            copyBigDataTo("kws.net.v3", netFile);
+            copyBigDataTo("kws.cmvn.v3", cmvnFile);
             copyBigDataTo("kws.fst", fstFile);
             copyBigDataTo("kws.filler", fillerFile);
         } catch (Exception e) {
